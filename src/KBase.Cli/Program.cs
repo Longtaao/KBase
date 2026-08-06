@@ -206,7 +206,44 @@ public static class Program
             return 0;
         });
 
+        // ---------- serve ----------
+        var serveCmd = new Command("serve", "启动本地 Web UI（浏览器管理笔记）");
+        var portOpt2 = new Option<int>("--port") { Description = "端口，默认 8765", DefaultValueFactory = _ => 8765 };
+        serveCmd.Add(portOpt2);
+        serveCmd.SetAction(parseResult =>
+        {
+            var vault = FindVaultRoot(Directory.GetCurrentDirectory());
+            if (vault is null)
+            {
+                Console.WriteLine("❌ 当前目录不是知识库（找不到 .kbase）。");
+                Console.WriteLine("   先用 kbase init 初始化，或 cd 到知识库目录再试。");
+                return 1;
+            }
+            var port = parseResult.GetValue(portOpt2);
+            var webExe = Path.Combine(AppContext.BaseDirectory, "KBase.Web.exe");
+            if (!File.Exists(webExe))
+            {
+                Console.WriteLine($"❌ 找不到 Web 组件：{webExe}");
+                return 1;
+            }
+            var psi = new System.Diagnostics.ProcessStartInfo(webExe)
+            {
+                UseShellExecute = false,
+                WorkingDirectory = AppContext.BaseDirectory,
+            };
+            psi.ArgumentList.Add("--vault");
+            psi.ArgumentList.Add(vault);
+            psi.ArgumentList.Add("--port");
+            psi.ArgumentList.Add(port.ToString());
+            System.Diagnostics.Process.Start(psi);
+            Console.WriteLine($"🌐 KBase Web UI 已启动：http://localhost:{port}");
+            Console.WriteLine($"   知识库：{vault}");
+            Console.WriteLine("   停止：关掉弹出的 KBase.Web 窗口即可");
+            return 0;
+        });
+
         root.Add(initCmd);
+        root.Add(serveCmd);
         root.Add(newCmd);
         root.Add(listCmd);
         root.Add(openCmd);

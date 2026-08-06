@@ -36,4 +36,15 @@ public interface INoteRepository
     /// 解析 YAML frontmatter（标签）和 [[wikilink]]。
     /// </summary>
     (int Added, int Updated, int Removed) Reindex();
+
+    // ---- v0.3 Web UI ----
+
+    /// <summary>按 ID 取笔记（含正文）。</summary>
+    Note? Get(string id);
+
+    /// <summary>更新笔记（标题/标签/正文）。重命名时同步移动文件。</summary>
+    void Update(string id, string title, IEnumerable<string> tags, string content);
+
+    /// <summary>删除笔记（文件 + 索引）。</summary>
+    void Delete(string id);
 }

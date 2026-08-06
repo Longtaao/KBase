@@ -1,0 +1,61 @@
+@page
+@model KBase.Web.Pages.Notes.ViewModel
+@{
+    ViewData["Title"] = Model.Note?.Title ?? "笔记";
+}
+
+<div class="row">
+    <div class="col-lg-9">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <h1 class="mb-0">@Model.Note!.Title</h1>
+            <div class="btn-group">
+                <a class="btn btn-sm btn-outline-primary" asp-page="/Notes/Edit" asp-route-id="@Model.Note.Id">✏️ 编辑</a>
+                <form method="post" asp-page-handler="Delete" asp-route-id="@Model.Note.Id"
+                      onsubmit="return confirm('确定删除这篇笔记吗？文件也会被删除。')">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">🗑️ 删除</button>
+                </form>
+            </div>
+        </div>
+
+        @if (Model.Note.Tags.Count > 0)
+        {
+            <div class="mb-3">
+                @foreach (var tag in Model.Note.Tags)
+                {
+                    <a class="badge text-bg-secondary text-decoration-none me-1" asp-page="/Index" asp-route-tag="@tag">#@tag</a>
+                }
+            </div>
+        }
+
+        <div class="kbase-markdown border rounded p-4 bg-white">
+            @Html.Raw(Model.Html)
+        </div>
+
+        <div class="text-muted small mt-3">
+            创建于 @Model.Note.CreatedAt.ToString("yyyy-MM-dd HH:mm") · 更新于 @Model.Note.UpdatedAt.ToString("yyyy-MM-dd HH:mm")
+        </div>
+    </div>
+
+    <div class="col-lg-3">
+        <div class="card mb-3">
+            <div class="card-header">🔗 反向链接（@Model.Backlinks.Count）</div>
+            <div class="card-body p-0">
+                @if (Model.Backlinks.Count == 0)
+                {
+                    <p class="text-muted small p-3 mb-0">还没有笔记引用这篇，在别的笔记里写 <code>[[@Model.Note.Title]]</code> 建立链接。</p>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (var b in Model.Backlinks)
+                        {
+                            <li class="list-group-item">
+                                <a asp-page="/Notes/View" asp-route-title="@b.Title">@b.Title</a>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+</div>

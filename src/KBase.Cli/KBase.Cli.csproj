@@ -1,8 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\KBase.Core\KBase.Core.csproj" />
     <ProjectReference Include="..\KBase.Infrastructure\KBase.Infrastructure.csproj" />
+    <ProjectReference Include="..\KBase.Web\KBase.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -17,4 +18,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Content Include="..\KBase.Web\wwwroot\**" Link="wwwroot\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

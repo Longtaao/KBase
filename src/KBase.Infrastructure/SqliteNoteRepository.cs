@@ -73,7 +73,7 @@ public partial class SqliteNoteRepository : INoteRepository
         };
 
         // 文件 = YAML frontmatter（标签）+ 正文
-        File.WriteAllText(filePath, BuildFrontmatter(note.Tags) + content, Encoding.UTF8);
+        File.WriteAllText(filePath, BuildFrontmatter(note.Tags) + content, Utf8NoBom);
 
         using var conn = Open();
         using var tx = conn.BeginTransaction();
@@ -330,6 +330,89 @@ public partial class SqliteNoteRepository : INoteRepository
         return (added, updated, removed);
     }
 
+    // ---------- v0.3 Web UI ----------
+
+    public Note? Get(string id)
+    {
+        Init();
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT n.id, n.title, n.path, n.tags, n.created_at, n.updated_at, f.content
+            FROM notes n LEFT JOIN notes_fts f ON n.id = f.note_id
+            WHERE n.id = $id
+            """;
+        cmd.Parameters.AddWithValue("$id", id);
+        using var r = cmd.ExecuteReader();
+        if (!r.Read()) return null;
+        return new Note
+        {
+            Id = r.GetString(0),
+            Title = r.GetString(1),
+            Path = r.GetString(2),
+            Tags = UnpackTags(r.GetString(3)),
+            CreatedAt = DateTime.Parse(r.GetString(4)),
+            UpdatedAt = DateTime.Parse(r.GetString(5)),
+            Content = r.IsDBNull(6) ? "" : r.GetString(6),
+        };
+    }
+
+    public void Update(string id, string title, IEnumerable<string> tags, string content)
+    {
+        Init();
+        var note = Get(id) ?? throw new InvalidOperationException($"笔记不存在: {id}");
+        var tagList = tags.Distinct().ToList();
+
+        // 重命名：移动文件
+        var newRel = SanitizeFileName(title) + ".md";
+        if (!string.Equals(note.Path, newRel, StringComparison.OrdinalIgnoreCase))
+        {
+            var dest = Path.Combine(_root, newRel);
+            var n = 2;
+            while (File.Exists(dest) && !string.Equals(dest, Path.Combine(_root, note.Path), StringComparison.OrdinalIgnoreCase))
+                dest = Path.Combine(_root, $"{SanitizeFileName(title)} ({n++}).md");
+            newRel = Path.GetFileName(dest);
+            File.Move(Path.Combine(_root, note.Path), dest);
+        }
+
+        File.WriteAllText(Path.Combine(_root, newRel), BuildFrontmatter(tagList) + content, Utf8NoBom);
+
+        using var conn = Open();
+        using var tx = conn.BeginTransaction();
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.Transaction = tx;
+            cmd.CommandText = """
+                UPDATE notes SET title = $title, path = $path, tags = $tags, updated_at = $updated
+                WHERE id = $id
+                """;
+            cmd.Parameters.AddWithValue("$title", title);
+            cmd.Parameters.AddWithValue("$path", newRel);
+            cmd.Parameters.AddWithValue("$tags", PackTags(tagList));
+            cmd.Parameters.AddWithValue("$updated", DateTime.Now.ToString("o"));
+            cmd.Parameters.AddWithValue("$id", id);
+            cmd.ExecuteNonQuery();
+        }
+        ReplaceFts(conn, tx, id, title, content);
+        ReplaceLinks(conn, tx, id, ExtractWikiLinks(content));
+        tx.Commit();
+    }
+
+    public void Delete(string id)
+    {
+        Init();
+        var note = Get(id);
+        if (note is null) return;
+
+        var file = Path.Combine(_root, note.Path);
+        if (File.Exists(file)) File.Delete(file);
+
+        using var conn = Open();
+        using var tx = conn.BeginTransaction();
+        DeleteNote(conn, tx, id);
+        tx.Commit();
+    }
+
     // ---------- 私有工具 ----------
 
     private SqliteConnection Open()
@@ -479,10 +562,12 @@ public partial class SqliteNoteRepository : INoteRepository
         return sb.ToString();
     }
 
-    /// <summary>拆 frontmatter：返回 (frontmatter 文本, 正文)。兼容 \r\n 文件。</summary>
+    private static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
+
+    /// <summary>拆 frontmatter：返回 (frontmatter 文本, 正文)。兼容 \r\n 和 BOM。</summary>
     public static (string Frontmatter, string Body) SplitFrontmatter(string fileContent)
     {
-        var text = fileContent.Replace("\r\n", "\n");
+        var text = fileContent.Replace("\r\n", "\n").TrimStart('\uFEFF');
         if (text.StartsWith("---\n", StringComparison.Ordinal))
         {
             var end = text.IndexOf("\n---\n", 4, StringComparison.Ordinal);

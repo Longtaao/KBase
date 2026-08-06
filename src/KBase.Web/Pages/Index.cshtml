@@ -1,0 +1,95 @@
+@page
+@model KBase.Web.Pages.IndexModel
+@{
+    ViewData["Title"] = "KBase";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">📚 KBase</h1>
+    <a class="btn btn-primary" asp-page="/Notes/Edit">➕ 新建笔记</a>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col">
+        <input class="form-control" type="search" name="search" value="@Model.Search" placeholder="🔍 搜索笔记（支持中文）" />
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-outline-secondary">搜索</button>
+    </div>
+    @if (!string.IsNullOrEmpty(Model.Search))
+    {
+        <div class="col-auto">
+            <a class="btn btn-outline-secondary" asp-page="/Index">清除</a>
+        </div>
+    }
+</form>
+
+@if (Model.AllTags.Count > 0)
+{
+    <div class="mb-3">
+        @if (Model.Tag is null)
+        {
+            <span class="badge text-bg-primary me-1">全部</span>
+        }
+        else
+        {
+            <a class="badge text-bg-light text-decoration-none me-1 border" asp-page="/Index">全部</a>
+        }
+        @foreach (var t in Model.AllTags)
+        {
+            if (t.Name == Model.Tag)
+            {
+                <span class="badge text-bg-primary me-1">#@t.Name</span>
+            }
+            else
+            {
+                <a class="badge text-bg-light text-decoration-none me-1 border" asp-page="/Index" asp-route-tag="@t.Name">#@t.Name</a>
+            }
+        }
+    </div>
+}
+
+@if (Model.Notes.Count == 0)
+{
+    <div class="alert alert-light text-center py-5">
+        @if (!string.IsNullOrEmpty(Model.Search))
+        {
+            <span>没有找到与「@Model.Search」相关的笔记。</span>
+        }
+        else if (Model.Tag is not null)
+        {
+            <span>没有「@Model.Tag」标签的笔记。</span>
+        }
+        else
+        {
+            <span>📭 知识库还是空的，点右上角「新建笔记」开始吧！</span>
+        }
+    </div>
+}
+else
+{
+    <div class="list-group">
+        @foreach (var note in Model.Notes)
+        {
+            <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+               asp-page="/Notes/View" asp-route-title="@note.Title">
+                <div>
+                    <div class="fw-semibold">@note.Title</div>
+                    @if (note.Tags.Count > 0)
+                    {
+                        <div class="small text-muted">
+                            @foreach (var tag in note.Tags)
+                            {
+                                <span class="badge text-bg-light border me-1">#@tag</span>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="small text-muted text-end">
+                    @note.UpdatedAt.ToString("MM-dd HH:mm")
+                </div>
+            </a>
+        }
+    </div>
+    <div class="text-muted small mt-2">共 @Model.Notes.Count 篇</div>
+}

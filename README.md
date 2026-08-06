@@ -16,6 +16,7 @@
 | `kbase graph [--out 文件]` | 导出笔记关系图谱（JSON，含悬空节点） |
 | `kbase reindex` | 扫描 .md 文件，增量同步新增/修改/删除 |
 | `kbase stats` | 统计：笔记数、标签数、热门标签、最近更新 |
+| `kbase serve [--port 8765]` | 启动本地 Web UI，浏览器管理笔记 |
 
 ## 🚀 快速开始
 
@@ -58,15 +59,30 @@ created: 2026-08-06
 SYN → SYN-ACK → ACK，详见 [[网络基础]]
 ```
 
+## 🌐 Web UI（v0.3）
+
+```bash
+cd 你的知识库目录
+kbase serve
+# 浏览器打开 http://localhost:8765
+```
+
+- 笔记列表：搜索（中文全文）、标签过滤、时间排序
+- 详情页：Markdown 渲染（标题/表格/代码块）、`[[wikilink]]` 点击跳转、反向链接侧栏
+- 编辑：标题 / 标签（逗号分隔）/ 正文，保存即写回 `.md` 文件
+- 新建 / 删除（有确认提示）
+- 技术：ASP.NET Core Razor Pages + Markdig 渲染 + Bootstrap（本地资源，离线可用）
+
 ## 🧱 设计
 
 ```
 src/
 ├── KBase.Core/            # 领域模型 + 接口（Note、Tag、INoteRepository）
-├── KBase.Infrastructure/  # SQLite 实现（FTS5 + trigram 分词）
-└── KBase.Cli/             # CLI 入口（System.CommandLine）
+├── KBase.Infrastructure/  # SQLite 实现（FTS5 + trigram 分词 + links 表）
+├── KBase.Cli/             # CLI 入口（System.CommandLine）
+└── KBase.Web/             # Web UI（ASP.NET Core Razor Pages）
 tests/
-└── KBase.Tests/           # xUnit 单元测试
+└── KBase.Tests/           # xUnit 单元测试（31 个）
 ```
 
 ### 核心决策
@@ -81,7 +97,7 @@ tests/
 
 - [x] **v0.1** MVP：init / new / list / open / search / stats
 - [x] **v0.2** 双向链接 `[[wikilink]]` + 反向链接 + 图谱导出 + frontmatter 标签 + reindex
-- [ ] **v0.3** Web UI（ASP.NET Core）
+- [x] **v0.3** Web UI（ASP.NET Core Razor Pages：列表/搜索/详情/编辑/删除）
 - [ ] **v0.4** 本地 AI 问答（RAG，nomic-embed-text）
 
 ## 🛠️ 开发
