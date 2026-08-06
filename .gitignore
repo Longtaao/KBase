@@ -1,0 +1,13 @@
+# .NET build artifacts
+bin/
+obj/
+*.user
+
+# KBase runtime data
+.kbase/
+
+# IDE
+.vs/
+.vscode/
+*.suo
+*.user
